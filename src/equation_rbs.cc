@@ -114,7 +114,7 @@ void RigidBodySystemEquation::step()
   x_ = rbs_.get().ExpandState();
   //std::cout << "x_: " << x_ << std::endl;
 
-  NewtonSolver((*this), x_, 1e-8, 16);
+  NewtonSolver((*this), x_, 1e-11, 16);
   //std::cout << x_.segment(3, 9) << std::endl;
   rbs_.get().SaveState(x_);
 
@@ -149,7 +149,7 @@ void simulate_rbs(RigidBodySystem& rbs, double step_size, size_t steps_, std::fu
   auto start = std::chrono::high_resolution_clock::now();
   for (size_t j = 0; j < steps_; j++) {
     
-    NewtonSolver(eqrb, eqrb.x(), 1e-8, 16, callback);
+    NewtonSolver(eqrb, eqrb.x(), 1e-11, 16, callback);
    
     //std::cout << "step: " << i << std::endl;
     

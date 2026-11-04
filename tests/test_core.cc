@@ -411,7 +411,7 @@ void test_heavy_top_second_order() {
     eq.x() = top.sys.ExpandState();
     double err = 0, dE = 0;
     for (int k = 0; k < steps; k++) {
-      NewtonSolver(eq, eq.x(), 1e-8, 16);
+      NewtonSolver(eq, eq.x(), 1e-11, 16);
       top.sys.SaveState(eq.x());
       const auto& r = ref[(k + 1) * fac];
       double e = 0;
@@ -456,6 +456,41 @@ void test_pendulum_energy_bounded() {
   check(late < 1.1 * early, "energy drifts over time");
 }
 
+// With no external forces, energy and angular momentum are constant. Their drift
+// measures how exactly each step is solved, so this guards the solver's accuracy.
+void test_free_body_invariants_are_tight() {
+  const double J[3] = {0.0012, 0.0021, 0.0033};
+  const double w[3] = {0.02, 5, 0.02};
+  Matrix<double> Jm = diagonalInertia(J[0], J[1], J[2]);
+  RigidBodySystem s;
+  s.Gravity().setConstant(0);
+  RigidBody b(1.0, Jm);
+  for (int i = 0; i < 3; i++) b.p_skew()(i) = 0.5 * J[i] * w[i];
+  s.add(b);
+  auto energy = [&]() {
+    double E = 0;
+    for (int i = 0; i < 3; i++) {
+      const double wi = 2.0 * b.p_skew()(i) / J[i];
+      E += 0.5 * J[i] * wi * wi;
+    }
+    return E;
+  };
+  auto momentum = [&](int i) {
+    double L = 0;
+    for (int j = 0; j < 3; j++) L += b.q()(i, j) * 2.0 * b.p_skew()(j);
+    return L;
+  };
+  const double E0 = energy();
+  const double L0[3] = {momentum(0), momentum(1), momentum(2)};
+  const double L0norm = std::sqrt(L0[0] * L0[0] + L0[1] * L0[1] + L0[2] * L0[2]);
+
+  simulate_rbs(s, 0.004, 2500);
+
+  checkNear(energy() / E0, 1.0, 1e-12, "relative energy");
+  for (int i = 0; i < 3; i++)
+    checkNear((momentum(i) - L0[i]) / L0norm, 0.0, 1e-12, "relative angular momentum");
+}
+
 // Automatic differentiation must agree with central differences.
 void test_jacobian_matches_finite_differences() {
   HeavyTop top;
@@ -487,6 +522,7 @@ const std::map<std::string, std::function<void()>>& allTests() {
       {"fixed_anchor_away_from_origin", test_fixed_anchor_away_from_origin},
       {"heavy_top_second_order", test_heavy_top_second_order},
       {"pendulum_energy_bounded", test_pendulum_energy_bounded},
+      {"free_body_invariants_are_tight", test_free_body_invariants_are_tight},
       {"jacobian_matches_finite_differences", test_jacobian_matches_finite_differences},
   };
   return tests;

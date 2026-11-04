@@ -42,3 +42,10 @@ env/**
 
 .ipynb_checkpoints
 .pyodide-xbuildenv*
+
+dist/
+site/
+.jupyterlite.doit.db
+_output/
+.cache/
+.gstack/

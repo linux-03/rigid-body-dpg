@@ -11,11 +11,15 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "lib_rigid_body"
-version="0.0.1"
+version="0.1.0"
+requires-python = ">=3.10"
+dependencies = ["numpy"]
 description="rigid body mechanics implementation"
 authors = [
+  { name = "Linus Knoll" },
   { name = "J. Schöberl, T. Leichtfried, L. Gauler, N. Hammer" },
 ]
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
+wheel.packages = ["python/lib_rigid_body"]

@@ -1,187 +1,73 @@
-# .github/workflows/build-site.yml
-name: Build Pyodide wheel & JupyterLite site
+name: Build wheel and publish examples
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 env:
-  # keep these in sync with your Dockerfile if you change them
-  PYODIDE_VERSION: "0.26.0"
+  PYODIDE_BUILD_VERSION: "0.26.0"
   EMSDK_VERSION: "3.1.58"
-  PYTHON_VERSION: "3.12"
-  EMSDK_DIR: "${{ github.workspace }}/emsdk"
-  VENV_DIR: "${{ github.workspace }}/.pyodide-venv"
-  PROJECT_DIR: "${{ github.workspace }}"
-  # Optional: override pyodide tarball if you need a different one
   PYODIDE_TARBALL: "https://ngsolve.org/files/pyodide-0.26.0/ngsolve_pyodide.tar.bz2"
 
 jobs:
-  build-site:
+  tests:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          submodules: 'recursive'
-          fetch-depth: 0
+          python-version: "3.12"
+      - name: Fetch submodules over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+      - run: pip install pybind11
+      - run: cmake -S . -B build -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+      - run: cmake --build build -j
+      - run: ctest --test-dir build --output-on-failure
+      - run: pip install . netgen-mesher pythreejs
+      - run: python tests/test_python.py
 
-      - name: Set up Node.js (needed by pyodide/jupyter-lite tools)
-        uses: actions/setup-node@v4
+  site:
+    runs-on: ubuntu-latest
+    needs: tests
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch submodules over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+      - uses: actions/setup-python@v5
         with:
-          node-version: "20"
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install APT packages (git, build tools, lbzip2, xxd, etc.)
+          python-version: "3.12"
+      - name: Install Emscripten
         run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            ccache python3-pip python3-venv git make pkg-config g++ \
-            lbzip2 xz-utils autoconf libtool unzip xxd wget
-          sudo rm -rf /var/lib/apt/lists/*
-
-      - name: Install Emscripten (emsdk)
+          git clone https://github.com/emscripten-core/emsdk.git
+          ./emsdk/emsdk install "$EMSDK_VERSION"
+          ./emsdk/emsdk activate "$EMSDK_VERSION"
+      - name: Build the Pyodide wheel
         run: |
-          set -euo pipefail
-          # clone into workspace so runner cache/permissions are straightforward
-          rm -rf "${EMSDK_DIR}"
-          git clone https://github.com/emscripten-core/emsdk.git "${EMSDK_DIR}"
-          cd "${EMSDK_DIR}"
-          ./emsdk install ${EMSDK_VERSION}
-          ./emsdk activate ${EMSDK_VERSION}
-        env:
-          EMSDK_DIR: ${{ env.EMSDK_DIR }}
-          EMSDK_VERSION: ${{ env.EMSDK_VERSION }}
-
-      - name: Create venv and install pyodide-build
-        run: |
-          python3 -m venv "${VEN  V_DIR}"
-          source "${VENV_DIR}/bin/activate"
-          pip install --upgrade pip
-          # install specific pyodide-build version from Dockerfile
-          pip install "pyodide-build==${PYODIDE_VERSION}" --break-system-packages
-        env:
-          VENV_DIR: ${{ env.VENV_DIR }}
-          PYODIDE_VERSION: ${{ env.PYODIDE_VERSION }}
-
-      - name: Run pyodide build (produces wheel in ./dist)
-        run: |
-          set -euo pipefail
-          # source emsdk to get emcc, then activate venv and build
-          source "${EMSDK_DIR}/emsdk_env.sh"
-          source "${VENV_DIR}/bin/activate"
-          cd "${PROJECT_DIR}"
-          # run pyodide build just like in your Dockerfile
-          export CMAKE_ARGS="-DPYBIND11_FINDPYTHON=OFF -DPYBIND11_FINDPYTHON_EXECUTABLE:STRING=$(which python) -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_POLICY_VERSION=3.18"
-          echo "CMAKE_ARGS=$CMAKE_ARGS"
+          pip install "pyodide-build==$PYODIDE_BUILD_VERSION" "wheel==0.43.0" "setuptools<80"
+          source ./emsdk/emsdk_env.sh
           pyodide build
-        env:
-          EMSDK_DIR: ${{ env.EMSDK_DIR }}
-          VENV_DIR: ${{ env.VENV_DIR }}
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-
-      - name: Install generated wheel (if present) and print Python version
+          # jupyterlite-pyodide-kernel 0.3 only indexes wheels with an emscripten tag;
+          # Pyodide 0.26 accepts both names for the same ABI.
+          for wheel in dist/*pyodide_2024_0_wasm32.whl; do
+            mv "$wheel" "${wheel/pyodide_2024_0_wasm32/emscripten_3_1_58_wasm32}"
+          done
+          ls -la dist
+      - name: Build the JupyterLite site
         run: |
-          set -euo pipefail
-          source "${VENV_DIR}/bin/activate"
-          if [ -d "${PROJECT_DIR}/dist" ] && ls "${PROJECT_DIR}/dist"/*.whl >/dev/null 2>&1; then
-            pip install --no-deps --force-reinstall "${PROJECT_DIR}/dist"/*.whl || true
-          else
-            echo "No wheel found in ${PROJECT_DIR}/dist — continuing"
-          fi
-          python3 -c 'import sys; print("PYTHON", sys.version)'
-        env:
-          VENV_DIR: ${{ env.VENV_DIR }}
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-
-      - name: Prepare Pyodide wheel for JupyterLite (local pypi)
-        run: |
-          set -euo pipefail
-          mkdir -p files/pypi
-          cp -v "${PROJECT_DIR}/dist/"*.whl files/pypi/ || true
-          source "${VENV_DIR}/bin/activate"
-          pip install --upgrade jupyterlite-core
-          jupyter lite pip index files/pypi
-          ls -la files/pypi
-        env:
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-          VENV_DIR: ${{ env.VENV_DIR }}
-
-      - name: Install jupyter-lite requirements (from repo requirements.txt)
-        run: |
-          set -euo pipefail
-          source "${VENV_DIR}/bin/activate"
-          cd "${PROJECT_DIR}"
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt --break-system-packages
-          else
-            echo "No requirements.txt found — skipping"
-          fi
-        env:
-          VENV_DIR: ${{ env.VENV_DIR }}
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-
-      - name: Build JupyterLite site
-        run: |
-          set -euo pipefail
-          source "${VENV_DIR}/bin/activate"
-          cd "${PROJECT_DIR}"
-          # Respect TZ=UTC like Dockerfile
-          TZ=UTC jupyter lite build --pyodide "${PYODIDE_TARBALL}" --config jupyter_lite_config.json
-
-          #cp /root/ASC_ODE_BLA/dist/* /root/ASC_ODE_BLA/dist/static/pyodide
-        env:
-          VENV_DIR: ${{ env.VENV_DIR }}
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-          PYODIDE_TARBALL: ${{ env.PYODIDE_TARBALL }}
-
-      - name: Copy pyodide artifacts into site (if any)
-        run: |
-          set -euo pipefail
-          # ensure target directory exists and copy pyodide build artifacts
-          SITE_DIST="${PROJECT_DIR}/dist"   # typical jupyter-lite output
-          mkdir -p "${SITE_DIST}/static/pyodide"
-          if [ -d "${PROJECT_DIR}/dist" ] && ls "${PROJECT_DIR}/dist"/* >/dev/null 2>&1; then
-            # If pyodide build produced artifacts in ${PROJECT_DIR}/dist, copy them into site static dir
-            cp -r "${PROJECT_DIR}/dist/"* "${SITE_DIST}/static/pyodide/" || true
-          else
-            echo "No pyodide build artifacts found to copy."
-          fi
-          echo "Site distributable is at: ${SITE_DIST}"
-        env:
-          PROJECT_DIR: ${{ env.PROJECT_DIR }}
-
-      - name: Archive site output
-        if: always()
-        run: |
-          set -euo pipefail
-          SITE_DIR="${PROJECT_DIR}/dist"
-          if [ -d "${SITE_DIR}" ]; then
-            zip -r site-dist.zip "${SITE_DIR}"
-            ls -la site-dist.zip
-          else
-            echo "No site output at ${SITE_DIR}"
-            touch site-dist.zip
-          fi
-
-      - name: Upload site artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: site-dist
-          path: site-dist.zip
-
-      # Optional: deploy step (commented). Uncomment & configure if you want auto-deploy to gh-pages.
-      - name: Deploy to GitHub Pages
+          pip install -r site-requirements.txt
+          TZ=UTC jupyter lite build --pyodide "$PYODIDE_TARBALL"
+          touch site/.nojekyll
+      - name: Publish to GitHub Pages
+        if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./site

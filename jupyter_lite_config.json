@@ -1,6 +1,9 @@
 {
   "LiteBuildConfig": {
-    "output_dir": "dist",
-    "base_url": "/ASC_ODE_BLA/"
+    "contents": ["examples"],
+    "output_dir": "site"
+  },
+  "PipliteAddon": {
+    "piplite_urls": ["dist/lib_rigid_body-0.1.0-cp312-cp312-emscripten_3_1_58_wasm32.whl"]
   }
 }

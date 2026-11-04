@@ -112,19 +112,6 @@ namespace ASC_ode {
 
   void RigidBodyEquation::EvaluateDeriv(VectorView<double> x, MatrixView<double> df)  const {
 
-    Vector<double> force_old = rb_.Force();
-    Vector<double> vel_con_old = FuncConstraint(x, true);
-
-    Vector<double> force_new = rbs_.PotentialGradient(x, rb_.Index());
-    Vector<double> vel_con_new = FuncConstraint(x, false);
-
-    //std::cout << "force_old: " <<  force_old << std::endl;
-    //std::cout << "vel_con_old: " <<  vel_con_old << std::endl;
-    //std::cout << "force_new: " <<  force_new << std::endl;
-    //std::cout << "vel_con_new: " <<  vel_con_new << std::endl;
-  
-    //dNumeric((*this), x, df);
-    
     df.setConstant(0);
 
     Vector<AutoDiff<30, double>> x_diff = x;
