@@ -17,11 +17,16 @@ T RigidBodySystem::Potential(const VectorView<T> x)
   T pot = 0;
   for (size_t i = 0; i < NumBodies(); i++)
   {
-    pot += x.segment(i*dim_per_body(), 3).dot(gravity_);
+    for (size_t k = 0; k < 3; k++)
+    {
+      pot -= this->Bodies(i).Mass()*gravity_(k)*x(i*dim_per_body() + k);
+    }
   }
 
   return pot;
 }
+
+template double RigidBodySystem::Potential<double>(const VectorView<double> x);
 
 size_t& RigidBodySystem::NumBeams() 
 {

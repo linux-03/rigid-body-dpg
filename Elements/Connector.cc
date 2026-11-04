@@ -43,6 +43,7 @@ double Connector::RefPosition(size_t i)
 }
 Vector<double> Connector::InitialPosition()
 {
+  if (this->type_ == ConnectorType::FIX) return this->pos_;
   return this->initial_body_trans_ + this->initial_body_rot_ * this->pos_;
 }
 Vector<double> Connector::InitialBodyTranslation()

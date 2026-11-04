@@ -19,7 +19,7 @@ class RigidBody {
     Vector<double> v_trans_;
     Vector<double> v_skew_;
     Vector<double> p_trans_;
-    Vector<double> p_skew_;    // Momentum vector (6D: 3D translation + 3D rotation)
+    Vector<double> p_skew_;    // Body-frame momentum, 1/2 * J * omega
     double lambda_;
     double mu_;
     size_t constraint_number_half_ = 0;
@@ -29,6 +29,7 @@ class RigidBody {
     Matrix<double> mass_matrix_;
     Matrix<double> mass_matrix_inv_;
     Matrix<double> inertia_;
+    Matrix<double> inertia_inv_ = Matrix<double>(3, 3);
     double mass_;
     
 
@@ -46,10 +47,13 @@ class RigidBody {
     VectorView<double> v_trans();
     VectorView<double> v_skew();
     VectorView<double> p_trans();
+    /// Body-frame momentum, equal to 1/2 * J * omega (thesis eq. 4.13).
     VectorView<double> p_skew();
     MatrixView<double> MassMatrix();
     MatrixView<double> MassMatrixInv();
     MatrixView<double> Inertia();
+    Matrix<double> TensorD();
+    MatrixView<double> InertiaInv();
     double Mass();
     double& lambda();
     double& mu();

@@ -58,6 +58,7 @@ Beam::Beam(const Beam& other): lambda_vec_(other.lambda_vec_.Size()), mu_vec_(ot
   this->connector_a_ = other.connector_a_;
   this->connector_b_ = other.connector_b_;
   this->number_of_constraints_ = other.number_of_constraints_;
+  this->start_index_ = other.start_index_;
   this->constraint_plane_b_ = other.constraint_plane_b_;
   this->constraint_plane_a_ = other.constraint_plane_a_;
   this->length_ = other.length_;

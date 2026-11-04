@@ -113,6 +113,8 @@ PYBIND11_MODULE(rigid_body_FEM, rbd) {
       .def("add", py::overload_cast<RigidBody&>(&RigidBodySystem::add))
       .def("add", py::overload_cast<Beam&>(&RigidBodySystem::add))
       .def("add", py::overload_cast<Spring&>(&RigidBodySystem::add))
+      .def_property("gravity", [](RigidBodySystem& r){ auto& g = r.Gravity(); return py::make_tuple(g(0), g(1), g(2));},
+                               [](RigidBodySystem& r, std::array<double,3> vals){ auto& g = r.Gravity(); g(0) = vals[0]; g(1) = vals[1]; g(2) = vals[2];})
       .def("saveState", &RigidBodySystem::SaveState)
       .def("expandState", &RigidBodySystem::ExpandState)
       .def("beams", py::overload_cast<>(&RigidBodySystem::Beams))
@@ -125,7 +127,8 @@ PYBIND11_MODULE(rigid_body_FEM, rbd) {
       .def("step", &RigidBodySystemEquation::step);
     
     
-    rbd.def("simulate",[](RigidBodySystem& rbs, double tend, double steps) {simulate_rbs(rbs, tend, steps);});
+    rbd.def("simulate",[](RigidBodySystem& rbs, double step_size, size_t steps) {simulate_rbs(rbs, step_size, steps);},
+            py::arg("rbs"), py::arg("step_size"), py::arg("steps"));
 
     rbd.def("init_simulate", [](RigidBodySystem& rbs, double tend, double steps){});
 }

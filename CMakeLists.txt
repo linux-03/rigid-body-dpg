@@ -5,6 +5,11 @@ project(ASC_ODE_BLA LANGUAGES CXX)
 cmake_policy(VERSION 3.18)
 
 set (CMAKE_CXX_STANDARD 17)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 # --- CI/pyodide: skip host-Python probing when cross-compiling to Emscripten ---
@@ -85,6 +90,19 @@ add_executable(main main.cc)
 
 # Link libraries to the main executable
 target_link_libraries(main PRIVATE helper Elements nonlinfunc src)
+
+# Regression tests: ctest --test-dir <build> --output-on-failure
+enable_testing()
+add_executable(test_core tests/test_core.cc)
+target_link_libraries(test_core PRIVATE helper Elements nonlinfunc src)
+foreach(test_name
+    mass_scales_kinematics inertia_torque_free_precession gravity_direction_and_equivalence
+    potential_consistent_with_force hidden_constraint_uses_mass anchor_on_body_other_than_zero
+    exact_rotations_are_regular left_invariance body_without_beams_runs
+    copy_keeps_index_and_constraints fixed_anchor_away_from_origin heavy_top_second_order
+    pendulum_energy_bounded jacobian_matches_finite_differences)
+  add_test(NAME ${test_name} COMMAND test_core ${test_name})
+endforeach()
 
 # pybind11 module — STRICTLY guarded so python_add_library is only used when SKBUILD defines it.
 if(DEFINED SKBUILD)

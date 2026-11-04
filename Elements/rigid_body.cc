@@ -18,6 +18,8 @@ p_skew_(3), p_half_trans_(3), p_half_skew_(3), v_trans_(3), v_skew_(3), mass_(1.
   v_skew_.setConstant(0);
 
   q_.diagonal(1);
+  constraints_.reset(new Matrix<double>(0,12));
+  recalcMassMatrix();
 }
 
 RigidBody::RigidBody(VectorView<double> q, VectorView<double> p): force_(12), q_trans_(3), q_(3, 3), p_trans_(3),
@@ -31,6 +33,8 @@ p_skew_(3), p_half_trans_(3), p_half_skew_(3), v_trans_(3), v_skew_(3), mass_(1.
   p_half_skew_.setConstant(0);
   v_trans_.setConstant(0);
   v_skew_.setConstant(0);
+  constraints_.reset(new Matrix<double>(0,12));
+  recalcMassMatrix();
 }
 
 RigidBody::RigidBody(double mass, MatrixView<double> inertia): force_(12), q_trans_(3), q_(3, 3), p_trans_(3),
@@ -46,6 +50,7 @@ p_skew_(3), p_half_trans_(3), p_half_skew_(3), v_trans_(3), v_skew_(3), mass_(ma
   v_skew_.setConstant(0);
 
   q_.diagonal(1);
+  constraints_.reset(new Matrix<double>(0,12));
   recalcMassMatrix();
 }
 
@@ -63,9 +68,11 @@ p_skew_(3), p_half_trans_(3), p_half_skew_(3), v_trans_(3), v_skew_(3), mass_(ot
   lambda_ = other.lambda_;
   mu_ = other.mu_;
   beams_ = other.beams_;
-  constraints_.reset(new Matrix(12, other.beams_.size()));
-  *(constraints_) = *(other.constraints_);
+  body_index_ = other.body_index_;
+  constraint_number_half_ = other.constraint_number_half_;
+  if (other.constraints_) constraints_.reset(new Matrix<double>(*other.constraints_));
   force_ = other.force_;
+  inertia_inv_ = other.inertia_inv_;
   vertices_ = other.vertices_;
   normals_ = other.normals_;
 }
@@ -80,6 +87,7 @@ void RigidBody::recalcMassMatrix() {
     //std::cout << "here " << inertia_ << std::endl;
     //std::cout << "Mass matrix:\n" << MassMatrix() << std::endl;
     mass_matrix_inv_ = inverse(mass_matrix_);
+    inertia_inv_ = inverse(inertia_);
   }
 
 VectorView<double> RigidBody::q_trans()
@@ -133,6 +141,17 @@ MatrixView<double> RigidBody::MassMatrix()
 MatrixView<double> RigidBody::MassMatrixInv()
 {
   return mass_matrix_inv_;
+}
+Matrix<double> RigidBody::TensorD()
+{
+  double tr=0.5*(inertia_(0,0)+inertia_(1,1)+inertia_(2,2));
+  Matrix<double> D(3,3);
+  for(size_t i=0;i<3;i++) for(size_t j=0;j<3;j++) D(i,j)=(i==j?tr:0.0)-inertia_(i,j);
+  return D;
+}
+MatrixView<double> RigidBody::InertiaInv()
+{
+  return inertia_inv_;
 }
 MatrixView<double> RigidBody::Inertia()
 {

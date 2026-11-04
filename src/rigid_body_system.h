@@ -15,7 +15,7 @@ class RigidBodySystem {
     std::vector<std::reference_wrapper<RigidBody>> bodies_;
     std::vector<std::reference_wrapper<Beam>> beams_;
     std::vector<std::reference_wrapper<Spring>> springs_;
-    Vector<double> gravity_ = {0, 9.81, 0};
+    Vector<double> gravity_ = {0, -9.81, 0};
 
   public:
     RigidBodySystem();
@@ -24,11 +24,11 @@ class RigidBodySystem {
     T Potential(const VectorView<T> x);
 
     /**
-    * @brief Computes the Gradient of the potential Energy for one body
+    * @brief Computes the applied force on one body, which is minus the gradient of the potential
     *
     * @param x The full position vector containing each position and momentum of each body
     * @param body_index The index of the body to get the gradient fo
-    * @return 12 Dimensional gradient
+    * @return 12 Dimensional force
     */
     template<typename T>
     Vector<T> PotentialGradient(const VectorView<T> x, size_t body_index)
@@ -36,7 +36,7 @@ class RigidBodySystem {
       Vector<T> pot_grad(12);
       pot_grad.setConstant(0);
 
-      pot_grad.segment(0, 3) = gravity_;
+      pot_grad.segment(0, 3) = this->Bodies(body_index).Mass()*gravity_;
 
       return pot_grad;
     }
@@ -148,18 +148,26 @@ class RigidBodySystem {
       G_a += G_single_body_beam_n(bm, bd_index_a, x.segment(bd_index_a*dim_per_body(), 12), x.segment(bd_index_b*dim_per_body(), 12));
       G_b += G_single_body_beam_n(bm, bd_index_b, x.segment(bd_index_a*dim_per_body(), 12), x.segment(bd_index_b*dim_per_body(), 12));
       
-      Matrix<T> R_a = ToMatrix(x.segment(bd_index_a * dim_per_body() + 3, 9)) * vectorToSkewSymmetric( x.segment(bd_index_a * dim_per_body() + 18 + 3, 3) );
-      Matrix<T> R_b = ToMatrix(x.segment(bd_index_b * dim_per_body() + 3, 9)) * vectorToSkewSymmetric( x.segment(bd_index_b * dim_per_body() + 18 + 3, 3) );
-
-      Vector<T> c_a = G_a.Cols(0, 3)*x.segment(bd_index_a * dim_per_body() + 18, 3) + 
-                    G_a.Cols(3, 9) * ToVector(R_a);
-
-      Vector<T> c_b = G_b.Cols(0, 3)*x.segment(bd_index_b * dim_per_body() + 18, 3) + 
-                    G_b.Cols(3, 9)*ToVector(R_b);
-
-      return c_a + c_b;
+      // G * M^-1 * p for one body: velocity p/m, and Qdot = Q*hat(omega) with
+      // omega = 2*J^-1*p_skew. Fixed connectors contribute no velocity.
+      auto rate=[&](Matrix<T>& G, size_t bd){
+        RigidBody& b=this->Bodies(bd);
+        Vector<T> pt=x.segment(bd*dim_per_body()+18,3);
+        Vector<T> phat=x.segment(bd*dim_per_body()+21,3);
+        MatrixView<double> Jinv=b.InertiaInv();
+        Vector<T> w(3); Vector<T> pt2(3);
+        for(size_t k=0;k<3;k++){ pt2(k)=(1.0/b.Mass())*pt(k); T acc=0.0*phat(0); for(size_t l=0;l<3;l++) acc=acc+(2.0*Jinv(k,l))*phat(l); w(k)=acc; }
+        Matrix<T> R=ToMatrix(x.segment(bd*dim_per_body()+3,9))*vectorToSkewSymmetric(VectorView<T>(w));
+        Vector<T> res=G.Cols(0,3)*pt2 + G.Cols(3,9)*ToVector(MatrixView<T>(R));
+        return res;
+      };
+      Vector<T> out(bm.NumberOfConstraints()/2); out.setConstant(0);
+      if (bm.ConnectorA().Type()!=ConnectorType::FIX) { Vector<T> c=rate(G_a,bd_index_a); out=out+c; }
+      if (bm.ConnectorB().Type()!=ConnectorType::FIX) { Vector<T> c=rate(G_b,bd_index_b); out=out+c; }
+      return out;
     }
 
+    Vector<double>& Gravity() { return gravity_; }
     size_t& NumBeams();
     size_t& NumSprings();
     size_t NumBodies() const;
