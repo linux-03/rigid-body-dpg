@@ -10,42 +10,6 @@
       {
         "extension": "./extension",
         "liteExtension": false,
-        "load": "static/remoteEntry.009d8686d52fe5d2e0a6.js",
-        "name": "@deathbeds/jupyterlab-deck"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.84fb12a2d77d4fba138f.js",
-        "name": "@deathbeds/jupyterlab-font-anonymous-pro"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.9d0e0e02cf346a361924.js",
-        "name": "@deathbeds/jupyterlab-font-atkinson-hyperlegible"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.fc308494b30447aef557.js",
-        "name": "@deathbeds/jupyterlab-font-dejavu-sans-mono"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.6fc3ad6366d192f9df4d.js",
-        "name": "@deathbeds/jupyterlab-font-fira-code"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.90fd4745446ff9dd5871.js",
-        "name": "@deathbeds/jupyterlab-fonts"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
         "load": "static/remoteEntry.9f387e5e108e458f62c3.js",
         "name": "@jupyter-widgets/jupyterlab-manager"
       },
@@ -73,12 +37,6 @@
         "load": "static/remoteEntry.5cbb9d2323598fbda535.js",
         "name": "jupyterlab_pygments",
         "style": "./style"
-      },
-      {
-        "extension": "./extension",
-        "liteExtension": false,
-        "load": "static/remoteEntry.9e8a6af0eec24e8008b7.js",
-        "name": "webgui_jupyter_widgets"
       }
     ],
     "fileTypes": {
@@ -360,6 +318,7 @@
     "litePluginSettings": {
       "@jupyterlite/pyodide-kernel-extension:kernel": {
         "pipliteUrls": [
+          "./pypi/all.json?sha256=2cd20379ac29cc33d0bb2938a7d796a3e70182ba5eb52368cf3a71fc01c6aa00",
           "./extensions/@jupyterlite/pyodide-kernel-extension/static/pypi/all.json?sha256=d328c7b79c804ad45c80b830801a4e63b4042117c2eb73be6aaf65747f2dbcfc"
         ],
         "pyodideUrl": "./static/pyodide/pyodide.js"

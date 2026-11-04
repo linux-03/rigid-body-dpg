@@ -1,0 +1,28 @@
+{
+  "lib-rigid-body": {
+    "releases": {
+      "0.1.0": [
+        {
+          "comment_text": "",
+          "digests": {
+            "md5": "bbfeab75b2cbf29d1064cb747abcfd2a",
+            "sha256": "0fd11496bfc0c1229a6033526723348682ec08dbd692eac2a876b55edb887954"
+          },
+          "downloads": -1,
+          "filename": "lib_rigid_body-0.1.0-cp312-cp312-emscripten_3_1_58_wasm32.whl",
+          "has_sig": false,
+          "md5_digest": "bbfeab75b2cbf29d1064cb747abcfd2a",
+          "packagetype": "bdist_wheel",
+          "python_version": "py3",
+          "requires_python": ">=3.10",
+          "size": 174331,
+          "upload_time": "2026-11-04T20:27:05.611780Z",
+          "upload_time_iso_8601": "2026-11-04T20:27:05.611780Z",
+          "url": "./lib_rigid_body-0.1.0-cp312-cp312-emscripten_3_1_58_wasm32.whl",
+          "yanked": false,
+          "yanked_reason": null
+        }
+      ]
+    }
+  }
+}
