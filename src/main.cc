@@ -35,7 +35,6 @@ int main()  {
 
   rbs.add(bm);
   rbs.add(bm2);
-  //std::cout << rbs.Bodies(0).q() << std::endl;
 
   //RigidBodySystemEquation eqrb(rbs, 0.1);
   simulate_rbs(rbs, 0.04, 1, [](int i, double err, VectorView<double> q) {

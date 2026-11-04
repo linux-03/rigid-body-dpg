@@ -14,6 +14,10 @@ w=World(); a=w.add(cube(.1),at=(1,0,0),density=100); c=w.add(cube(.1),at=(2,0,0)
 # free body: L & E conserved, flip
 h1=Box(Pnt(-.5,-.05,-.05),Pnt(.5,.05,.05)); h2=Box(Pnt(-.05,0,-.05),Pnt(.05,.5,.05)); T=h1+h2
 w=World(gravity=(0,0,0)); f=w.add(T,spin=(0.01,4,.01)); print('J',np.round(f.inertia,4)); r=w.run(8.0,h=.002); L=r.momenta[:,0]; print('free',r.summary(),'dL',np.max(np.linalg.norm(L-L[0],axis=1))); print('w_y range',r.spins[:,0,1].min(),r.spins[:,0,1].max()); assert np.max(np.linalg.norm(L-L[0],axis=1))<1e-8
+# spring: exact oscillator, then a free cube on an off-centre spring
+w=World(gravity=(0,0,0)); b=w.add(cube(.1),at=(1.3,0,0),mass=2,inertia=np.eye(3)); w.spring((1,0,0),b,stiffness=50,rest_length=0); r=w.run(1.0,h=.002); print('spring',r.summary()); assert abs(r.positions[-1,0,0]-(1+.3*np.cos(5)))<1e-3
+w=World(); b=w.add(cube(.1),at=(0,0,-1),density=100); w.spring((0,0,0),b,stiffness=200,at_b=(.05,.05,.1)); r=w.run(2.0,h=.002); print('spring cube',r.summary()); assert r.energy_error<1e-3
+r.show()
 # view builds
 v=r.show(speed=.5); print(type(v).__name__)
 print('ALL OK')

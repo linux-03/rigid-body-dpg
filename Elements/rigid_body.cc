@@ -84,8 +84,6 @@ void RigidBody::recalcMassMatrix() {
     mass_matrix_(2, 2) = 1.0;
     mass_matrix_ = mass_*mass_matrix_;
     mass_matrix_.Rows(3, 3).Cols(3, 3) = inertia_; // inertia matrix is already multiplied with mass
-    //std::cout << "here " << inertia_ << std::endl;
-    //std::cout << "Mass matrix:\n" << MassMatrix() << std::endl;
     mass_matrix_inv_ = inverse(mass_matrix_);
     inertia_inv_ = inverse(inertia_);
   }

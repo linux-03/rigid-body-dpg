@@ -23,6 +23,12 @@ T RigidBodySystem::Potential(const VectorView<T> x)
     }
   }
 
+  for (size_t k = 0; k < springs_.size(); k++)
+  {
+    Spring& spr = springs_[k];
+    pot += spr.Energy(x.segment(spr.ConnectorA().BodyIndex()*dim_per_body(), 12), x.segment(spr.ConnectorB().BodyIndex()*dim_per_body(), 12));
+  }
+
   return pot;
 }
 
@@ -85,7 +91,6 @@ Beam& RigidBodySystem::Beams(size_t i)
 std::vector<Beam> RigidBodySystem::Beams() {
   std::vector<Beam> vec;
   for (size_t i = 0; i < beams_.size(); i++) {
-    //std::cout << beams_[i].get().Index() << std::endl;
     vec.push_back(beams_[i].get());
   }
   return vec;
@@ -104,7 +109,6 @@ void RigidBodySystem::SaveState(const VectorView<double> x)
     RigidBody& rb = this->Bodies(i);
     size_t base = i*dim_per_body();
     rb.q_trans() = x.segment(base, 3);
-    //std::cout << ToMatrix(x.segment(3, 9));
     rb.q() = ToMatrix(x.segment(base + 3, 9));
     rb.p_trans() = x.segment(base + 18, 3);
     rb.p_skew() = x.segment(base + 21, 3);
@@ -116,7 +120,6 @@ void RigidBodySystem::SaveState(const VectorView<double> x)
     bm.LambdaVec() = x.segment(constraint_counter, bm.NumberOfConstraints()/2);
     bm.MuVec() = x.segment(constraint_counter + bm.NumberOfConstraints()/2, bm.NumberOfConstraints()/2);
     constraint_counter += bm.NumberOfConstraints();
-    //std::cout << bm.NumberOfConstraints() << std::endl;
   }
   this->ManageConstraints(x);
 }
@@ -146,7 +149,6 @@ Vector<double> RigidBodySystem::ExpandState()
     x.segment(base + 18, 3) = rb.p_trans();
     x.segment(base + 21, 3) = rb.p_skew();
   }
-  //std::cout << "After bodies expansion x: " << x << std::endl;
   return x;
 }
 
@@ -162,7 +164,6 @@ void RigidBodySystem::add(Beam& bm)
   bm.Index() = this->num_beams_;
   this->num_beams_++;
   this->num_constraints_ += bm.NumberOfConstraints();
-  //std::cout << "num_constraints_: " << this->num_constraints_ << std::endl;
   if (bm.ConnectorA().Type() != ConnectorType::FIX)
   {
     this->Bodies(bm.BodyIndexA()).addBeam(bm.Index(), bm.NumberOfConstraints()/2);
@@ -182,6 +183,11 @@ void RigidBodySystem::add(Spring& spr)
   this->springs_.push_back(std::ref(spr));
   spr.Index() = this->num_springs_;
   this->num_springs_++;
+
+  if (spr.RestLength() < 0)
+  {
+    spr.RestLength() = Norm(spr.ConnectorA().AbsPosition(this->Bodies(spr.ConnectorA().BodyIndex()).Vector_q()) - spr.ConnectorB().AbsPosition(this->Bodies(spr.ConnectorB().BodyIndex()).Vector_q()));
+  }
 }
 
 size_t RigidBodySystem::BodyDimensions() const 

@@ -9,6 +9,7 @@ from .rigid_body_FEM import (
     ConnectorType,
     RBS_FEM,
     RigidBody_FEM,
+    Spring,
     bla,
     simulate,
 )
@@ -97,6 +98,7 @@ class World:
         self.system.gravity = [float(g) for g in self.gravity]
         self.bodies = []
         self.links = []  # (anchor, offset_a, body_b, offset_b); anchor is a Body or a point
+        self.springs = []  # (anchor, offset_a, body_b, offset_b, stiffness, rest_length)
         self._keep_alive = []  # the C++ system stores references to these objects
 
     def add(self, shape, at=None, velocity=(0, 0, 0), spin=(0, 0, 0), density=1.0,
@@ -162,8 +164,39 @@ class World:
                        Connector(_vector(at_b), b.solver, ConnectorType.FREE))
         self.links.append((a, at_a, b, at_b))
 
+    def spring(self, a, b, stiffness, rest_length=None, at_a=(0, 0, 0), at_b=(0, 0, 0)):
+        """Linear spring from a body or fixed point `a` to body `b`. Offsets are body-frame.
+
+        The rest length defaults to the current distance, so the spring starts relaxed.
+        """
+        at_b = np.asarray(at_b, dtype=float)
+        if isinstance(a, Body):
+            at_a = np.asarray(at_a, dtype=float)
+            start = a.position + a.rotation @ at_a
+            connector = Connector(_vector(at_a), a.solver, ConnectorType.FREE)
+        else:
+            a, at_a = np.asarray(a, dtype=float), None
+            start = a
+            connector = Connector(_vector(a))
+        stop = b.position + b.rotation @ at_b
+        rest = float(np.linalg.norm(stop - start)) if rest_length is None else float(rest_length)
+        solver = Spring(connector, Connector(_vector(at_b), b.solver, ConnectorType.FREE), float(stiffness), rest)
+        self.system.add(solver)
+        self._keep_alive += [connector, solver]
+        self.springs.append((a, at_a, b, at_b, float(stiffness), rest))
+
+    def _spring_ends(self):
+        ends = []
+        for a, offset_a, b, offset_b, _, _ in self.springs:
+            start = a if offset_a is None else a.position + a.rotation @ offset_a
+            ends.append((start, b.position + b.rotation @ offset_b))
+        return ends
+
     def potential_energy(self):
-        return -sum(b.mass * self.gravity @ b.position for b in self.bodies)
+        energy = -sum(b.mass * self.gravity @ b.position for b in self.bodies)
+        for (start, stop), spring in zip(self._spring_ends(), self.springs):
+            energy += 0.5 * spring[4] * (np.linalg.norm(stop - start) - spring[5]) ** 2
+        return energy
 
     def energy(self):
         return sum(b.kinetic_energy() for b in self.bodies) + self.potential_energy()
@@ -213,6 +246,7 @@ class Recording:
         self.energies = []
         self.kinetic = []
         self.link_ends = []
+        self.spring_ends = []
         self.wall_time = 0.0
         self.steps = 0
 
@@ -226,6 +260,7 @@ class Recording:
         self.energies.append(self.world.energy())
         self.kinetic.append(sum(b.kinetic_energy() for b in bodies))
         self.link_ends.append(self.world._link_ends())
+        self.spring_ends.append(self.world._spring_ends())
 
     def freeze(self):
         self.times = np.array(self.times)

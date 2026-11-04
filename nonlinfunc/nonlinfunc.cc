@@ -10,11 +10,9 @@ using namespace std;
 
 namespace ASC_ode
 {
-  //Map<MatrixXd> Block_to_map(Map<MatrixXd>& m, size_t rows_start, size_t cols_start, size_t rows_num, size_t cols_num) {
   //  return Map<MatrixXd>(m.block(rows_start, cols_start, rows_num, cols_num).data(), rows_num, cols_num);
   //}
 
-  //Map<VectorXd> VecToMap(VectorXd& v) {
   //  return Map<VectorXd>(v.data(), v.size());
   //}
   
@@ -53,24 +51,12 @@ namespace ASC_ode
   void StackedFunction_large_input::Evaluate (VectorView<double> x, VectorView<double> f) const {
     size_t cursor_f=0;
     for(auto func : _functions){
-      //std::cout << func->DimF() << std::endl;
-      //std::cout << func->DimX() << std::endl;
-      //std::cout << f.Size() << std::endl;
-      //std::cout << x.Size() << std::endl;
-      //std::cout << cursor_f << std::endl;
 
-      //std::cout << f.segment(cursor_f, func->DimF()) << std::endl;
       func->Evaluate(x, f.segment(cursor_f, func->DimF()));
 
-      //VectorXd f1(30);±
-      //Map<VectorXd> f1_map(f1.data(), 30);
 
-      //func->Evaluate(x, f1_map);
-      //std::cout << f1 << std::endl << std::endl;
 
-      //func->EvaluateDeriv(x, df_seg);
 
-      //std::cout << df << std::endl;
 
       cursor_f+=func->DimF();
     }

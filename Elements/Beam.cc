@@ -40,15 +40,12 @@ Beam::Beam(Connector connector_a, Connector connector_b): lambda_vec_(2), mu_vec
     case ConnectorType::FIX:
       break;
   }
-  //std::cout << "axis: " << axis << std::endl;
-  //std::cout << "Number of constraints in beam: " << this->number_of_constraints_ << std::endl;
   this->lambda_vec_ = Vector<double>(this->number_of_constraints_/2);
   this->mu_vec_ = Vector<double>(this->number_of_constraints_/2);
   this->connector_a_ = connector_a;
   this->connector_b_ = connector_b;
   this->length_ = 0;
   this->index_ = -1;
-  //std::cout << "Number of constraints in beam: " << this->number_of_constraints_ << std::endl;
 }
 
 Beam::Beam(const Beam& other): lambda_vec_(other.lambda_vec_.Size()), mu_vec_(other.mu_vec_.Size())

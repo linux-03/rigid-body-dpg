@@ -1,10 +1,3 @@
-#find_package(Python REQUIRED COMPONENTS Interpreter Development)
-#find_package(pybind11 CONFIG REQUIRED)
-
-list(APPEND CMAKE_PREFIX_PATH "${PYBIND11_DIR}")
-
-
-
 add_library(src STATIC  
     rigid_body_system.cc 
     equation_rb.cc 

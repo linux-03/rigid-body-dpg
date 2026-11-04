@@ -13,9 +13,5 @@ size_t dim_per_motion()
   return 12;
 }
 
-size_t dim_per_beam()
-{
-  return 2;
-}
 
 #endif

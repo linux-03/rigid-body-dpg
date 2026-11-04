@@ -38,3 +38,7 @@ cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
+
+## License
+
+The code is released under the [MIT License](LICENSE). The `bla` submodule has its own MIT license.

@@ -35,13 +35,12 @@ int main()  {
   RigidBodySystemEquation eq = assemble(rbs, 0.004);
   for (size_t i = 0; i < steps; i++)
   {
-    std:cout << i << std::endl;
+    std::cout << i << std::endl;
     eq.step();
   }
   
   
   /* simulate_rbs(rbs, 0.004, steps, [](int i, double err, VectorView<double> q) {
-                    //std::cout << std::scientific << "Body1 newton-iteration: " << i << " newton-error: " << err << std::endl;
                       //<<"\t"<< "Translation = " << q(0) << " ," << q(1) << ", "<<", " << q(2) << "} " << std::endl
                       //<<"\t"<< " Rotation: " << q(3) << " ," << q(4) << ", "<<", " << q(5) << "} " << std::endl
                       //<<"\t"<< "           " << q(6) << " ," << q(7) << ", "<<", " << q(8) << "} " << std::endl
@@ -54,7 +53,6 @@ int main()  {
   for (size_t j = 0; j < steps/10; j++)
   {
     simulate_rbs(rbs, 0.004, 10, [](int i, double err, VectorView<double> q) {
-                    //std::cout << std::scientific << "Body1 newton-iteration: " << i << " newton-error: " << err << std::endl;
                       //<<"\t"<< "Translation = " << q(0) << " ," << q(1) << ", "<<", " << q(2) << "} " << std::endl
                       //<<"\t"<< " Rotation: " << q(3) << " ," << q(4) << ", "<<", " << q(5) << "} " << std::endl
                       //<<"\t"<< "           " << q(6) << " ," << q(7) << ", "<<", " << q(8) << "} " << std::endl

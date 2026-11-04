@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -g -arch arm64 -Xlinker -undefined -Xlinker dynamic_lookup -bundle -Wl,-headerpad_max_install_names -o rigid_body_FEM.cpython-39-darwin.so CMakeFiles/rigid_body_FEM.dir/bind.cc.o  Elements/libElements.a nonlinfunc/libnonlinfunc.a src/libsrc.a Elements/libElements.a nonlinfunc/libnonlinfunc.a helper/libhelper.a

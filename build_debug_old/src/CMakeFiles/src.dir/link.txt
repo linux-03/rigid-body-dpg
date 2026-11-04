@@ -1,2 +1,0 @@
-/usr/bin/ar qc libsrc.a CMakeFiles/src.dir/rigid_body_system.cc.o CMakeFiles/src.dir/equation_rb.cc.o CMakeFiles/src.dir/equation_rbs.cc.o
-/usr/bin/ranlib libsrc.a

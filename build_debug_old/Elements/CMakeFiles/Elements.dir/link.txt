@@ -1,2 +1,0 @@
-/usr/bin/ar qc libElements.a CMakeFiles/Elements.dir/Beam.cc.o CMakeFiles/Elements.dir/Connector.cc.o CMakeFiles/Elements.dir/Spring.cc.o CMakeFiles/Elements.dir/rigid_body.cc.o
-/usr/bin/ranlib libElements.a

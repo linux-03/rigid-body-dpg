@@ -38,6 +38,27 @@ class RigidBodySystem {
 
       pot_grad.segment(0, 3) = this->Bodies(body_index).Mass()*gravity_;
 
+      for (size_t k = 0; k < springs_.size(); k++)
+      {
+        Spring& spr = springs_[k];
+        Connector& a = spr.ConnectorA();
+        Connector& b = spr.ConnectorB();
+        Vector<T> force = spr.ForceOnA(x.segment(a.BodyIndex()*dim_per_body(), 12), x.segment(b.BodyIndex()*dim_per_body(), 12));
+        // Generalized force on (q, Q) from a force f at the body point s: f, and f_i*s_j.
+        auto apply = [&](Connector& c, double sign) {
+          if (c.Type() == ConnectorType::FIX || c.BodyIndex() != body_index) return;
+          Vector<double> s = c.RefPosition();
+          for (size_t i = 0; i < 3; i++)
+          {
+            pot_grad(i) = pot_grad(i) + sign*force(i);
+            for (size_t j = 0; j < 3; j++)
+              pot_grad(3 + 3*i + j) = pot_grad(3 + 3*i + j) + (sign*s(j))*force(i);
+          }
+        };
+        apply(a, 1.0);
+        apply(b, -1.0);
+      }
+
       return pot_grad;
     }
 
@@ -68,7 +89,6 @@ class RigidBodySystem {
     Matrix<T> JacobianConstraint(const VectorView<T> x, size_t body_index)
     {
       Matrix<T> G(this->Bodies(body_index).ConstraintNumberHalf(), 12);
-      //std::cout << "Computing G for body " << body_index <<  " Contraints: " << this->Bodies(body_index).ConstraintNumberHalf() << std::endl;
       G.setConstant(0);
       double constraint_counter = 0;
       for (size_t i = 0; i < this->Bodies(body_index).Beams().size(); i++)
@@ -76,7 +96,6 @@ class RigidBodySystem {
         Beam bm = Beams(this->Bodies(body_index).Beams()[i]);
         size_t index_a = bm.BodyIndexA();
         size_t index_b = bm.BodyIndexB();
-        //std::cout << "Singel body_beam: " <<  G_single_body_beam_n(bm, body_index, x.segment(index_a*dim_per_body(), 12), x.segment(index_b*dim_per_body(), 12)) << std::endl;
         G.Block(constraint_counter, 0, bm.NumberOfConstraints()/2, 12) = G_single_body_beam_n(bm, body_index, x.segment(index_a*dim_per_body(), 12), x.segment(index_b*dim_per_body(), 12));
         constraint_counter += bm.NumberOfConstraints()/2;
       }

@@ -14,9 +14,7 @@ using namespace std;
 
 namespace ASC_ode
 {
-  //Map<MatrixXd> Block_to_map(Map<MatrixXd>& m, size_t rows_start, size_t cols_start, size_t rows_num, size_t cols_num);
 
-  //Map<VectorXd> VecToMap(VectorXd& v);
 
   class NonlinearFunction
   {

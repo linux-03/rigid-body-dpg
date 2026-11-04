@@ -62,7 +62,10 @@ if(NOT DEFINED SKBUILD)
       exact_rotations_are_regular left_invariance body_without_beams_runs
       copy_keeps_index_and_constraints fixed_anchor_away_from_origin heavy_top_second_order
       pendulum_energy_bounded jacobian_matches_finite_differences
-      free_body_invariants_are_tight)
+      free_body_invariants_are_tight spring_matches_exact_oscillator spring_default_rest_length
+      spring_force_is_minus_gradient spring_pair_conserves_momentum
+      spring_jacobian_matches_finite_differences symplectic_body_on_spring
+      symplectic_check_detects_damping symplectic_heavy_top)
     add_test(NAME ${test_name} COMMAND test_core ${test_name})
   endforeach()
 endif()

@@ -10,7 +10,6 @@ RigidBodySystemEquation::RigidBodySystemEquation(RigidBodySystem& rbs, double st
   this->dimX_ = rbs.NumBodies()*dim_per_body() + rbs.NumConstraints();
 
   this->x_ = rbs.ExpandState();
-  //std::cout << "Initial x_: " << x_ << " Size: " << x_.Size() << std::endl;
   rbs.ManageConstraints(x_);
   Vector<double> f(30);
   for (size_t i = 0; i < rbs.NumBodies(); i++)
@@ -97,7 +96,6 @@ void RigidBodySystemEquation::EvaluateDeriv (VectorView<double> x, MatrixView<do
       df.Row(this->BodyDimensions() + 2*j).segment(dim_per_body()*bd_index, dim_per_body()) = f_diff(2*j); 
       df.Row(this->BodyDimensions() + 2*j + 1).segment(dim_per_body()*bd_index, dim_per_body()) = f_diff(2*j + 1); 
     }
-    //std::cout << "Computed df for body " << bd_index << std::endl;
   }
   
   
@@ -112,10 +110,8 @@ void RigidBodySystemEquation::step()
   //auto start_time = std::chrono::high_resolution_clock::now();
 
   x_ = rbs_.get().ExpandState();
-  //std::cout << "x_: " << x_ << std::endl;
 
   NewtonSolver((*this), x_, 1e-11, 16);
-  //std::cout << x_.segment(3, 9) << std::endl;
   rbs_.get().SaveState(x_);
 
   //auto end_time = std::chrono::high_resolution_clock::now();
@@ -144,26 +140,15 @@ void simulate_rbs(RigidBodySystem& rbs, double step_size, size_t steps_, std::fu
   RigidBodySystemEquation eqrb(rbs, step_size);
   
   eqrb.x() = rbs.ExpandState();
-  // std::cout << "Initial State: " << eqrb.x() << std::endl;
 
   auto start = std::chrono::high_resolution_clock::now();
   for (size_t j = 0; j < steps_; j++) {
     
     NewtonSolver(eqrb, eqrb.x(), 1e-11, 16, callback);
    
-    //std::cout << "step: " << i << std::endl;
     
-    //std::cout << eqrb.x().segment(3, 9) << std::endl;
     rbs.SaveState(eqrb.x());
-    //x(30)=0;
-    //x(31)=0;
 
-    //std::cout << x << std::endl;
-    //std::cout << i << ": " << x(1)*9.81 + x.segment(18, 3).squaredNorm() << std::endl << std::endl; 
-    //Energy : std::cout << x(1)*9.81 + 0.5*x.segment(18, 3).squaredNorm() << std::endl;
-    // Pot Energy : std::cout << x(1)*9.81 << std::endl;
-    // std::cout << 0.5*x.segment(18, 3).squaredNorm() << std::endl;
-    //std::cout << x(2) << std::endl;
   
   }
   // Record the end time
@@ -172,7 +157,6 @@ void simulate_rbs(RigidBodySystem& rbs, double step_size, size_t steps_, std::fu
     // Calculate the duration
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    //std::cout << "Time taken: " << duration.count() << " microseconds" << std::endl;
     
 }
 

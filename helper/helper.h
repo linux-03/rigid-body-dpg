@@ -70,22 +70,6 @@ size_t dim_per_body();
 
 size_t dim_per_motion();
 
-size_t dim_per_beam();
-
-/*
-size_t start_q_trans();
-size_t size_q_trans();
-size_t start_q_rot();
-size_t size_q_rot();
-size_t start_v_trans();
-size_t size_v_trans();
-size_t start_v_skew();
-size_t size_v_skew();
-size_t start_phalf_trans();
-size_t size_phalf_trans();
-size_t start_phalf_skew();
-size_t size_phalf_skew();
-*/
 
 
 #endif

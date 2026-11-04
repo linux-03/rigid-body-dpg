@@ -50,8 +50,10 @@ PYBIND11_MODULE(rigid_body_FEM, rbd) {
       .def_property_readonly("connectorB",[](Beam& b){return b.ConnectorB();});
 
     py::class_<Spring>(rbd,"Spring", py::module_local())
-      .def(py::init<>([](Connector a, Connector b){return Spring{a,b};})) // stiffness should be positive! (-k)
-      .def_property_readonly("stiffness", [](Spring& b){return b.Stiffness();}) // stiffness should be positive! (-k)
+      .def(py::init<>([](Connector a, Connector b, double stiffness, double rest_length){return Spring{a,b,stiffness,rest_length};}),
+           py::arg("a"), py::arg("b"), py::arg("stiffness") = 1.0, py::arg("rest_length") = -1.0)
+      .def_property("stiffness", [](Spring& s){return s.Stiffness();}, [](Spring& s, double k){s.Stiffness() = k;})
+      .def_property("rest_length", [](Spring& s){return s.RestLength();}, [](Spring& s, double l){s.RestLength() = l;})
       .def_property_readonly("connectorA", [](Spring& b){return b.ConnectorA();})
       .def_property_readonly("connectorB",[](Spring& b){return b.ConnectorB();});
 
@@ -130,5 +132,4 @@ PYBIND11_MODULE(rigid_body_FEM, rbd) {
     rbd.def("simulate",[](RigidBodySystem& rbs, double step_size, size_t steps) {simulate_rbs(rbs, step_size, steps);},
             py::arg("rbs"), py::arg("step_size"), py::arg("steps"));
 
-    rbd.def("init_simulate", [](RigidBodySystem& rbs, double tend, double steps){});
 }

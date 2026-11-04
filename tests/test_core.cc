@@ -491,6 +491,307 @@ void test_free_body_invariants_are_tight() {
     checkNear((momentum(i) - L0[i]) / L0norm, 0.0, 1e-12, "relative angular momentum");
 }
 
+// Zero rest length gives x'' = -(k/m) x, which has an exact solution.
+void test_spring_matches_exact_oscillator() {
+  const double m = 2.0, k = 50.0, x0 = 0.3, T = 1.0, omega = std::sqrt(k / m);
+  double previous = 0;
+  for (int steps : {200, 400}) {
+    Matrix<double> J = diagonalInertia(1, 1, 1);
+    RigidBodySystem s;
+    s.Gravity().setConstant(0);
+    RigidBody b(m, J);
+    b.q_trans()(0) = x0;
+    s.add(b);
+    Connector anchor(Vector<double>{0, 0, 0});
+    Connector end(Vector<double>{0, 0, 0}, b, ConnectorType::FREE);
+    Spring spring(anchor, end, k, 0.0);
+    s.add(spring);
+    simulate_rbs(s, T / steps, steps);
+    const double error = std::fabs(b.q_trans()(0) - x0 * std::cos(omega * T));
+    check(error < 2e-3, "oscillator error too large: " + std::to_string(error));
+    if (previous > 0) checkNear(std::log2(previous / error), 2.0, 0.1, "oscillator convergence rate");
+    previous = error;
+  }
+}
+
+// The default rest length is the distance when added, so the spring starts relaxed.
+void test_spring_default_rest_length() {
+  Matrix<double> J = diagonalInertia(1, 1, 1);
+  RigidBodySystem s;
+  s.Gravity().setConstant(0);
+  RigidBody b(1.0, J);
+  b.q_trans()(0) = 2;
+  s.add(b);
+  Connector anchor(Vector<double>{0, 0, 0});
+  Connector end(Vector<double>{0, 0, 0}, b, ConnectorType::FREE);
+  Spring spring(anchor, end, 10.0);
+  s.add(spring);
+  checkNear(spring.RestLength(), 2.0, 1e-14, "rest length");
+  simulate_rbs(s, 0.01, 10);
+  checkNear(b.q_trans()(0), 2.0, 1e-12, "relaxed spring moved the body");
+}
+
+// The stored force must equal minus the gradient, including the rotational part.
+void test_spring_force_is_minus_gradient() {
+  Matrix<double> J = diagonalInertia(1, 2, 3);
+  RigidBodySystem s;
+  RigidBody a(2.0, J), c(3.0, J);
+  a.q_trans()(0) = 1;
+  c.q_trans()(1) = 2;
+  s.add(a);
+  s.add(c);
+  Connector end_a(Vector<double>{0.1, 0.2, -0.3}, a, ConnectorType::FREE);
+  Connector end_c(Vector<double>{-0.2, 0.1, 0.4}, c, ConnectorType::FREE);
+  Spring spring(end_a, end_c, 7.0, 0.5);
+  s.add(spring);
+  Vector<double> x = s.ExpandState();
+  const double eps = 1e-6;
+  for (size_t body = 0; body < 2; body++) {
+    Vector<double> force = s.PotentialGradient<double>(x, body);
+    for (size_t i = 0; i < 12; i++) {
+      Vector<double> up = x, down = x;
+      up(body * dim_per_body() + i) += eps;
+      down(body * dim_per_body() + i) -= eps;
+      const double dV = (s.Potential<double>(up) - s.Potential<double>(down)) / (2 * eps);
+      checkNear(force(i), -dV, 1e-6, "force is not -dV/dq");
+    }
+  }
+}
+
+// Internal forces leave total linear and angular momentum unchanged.
+void test_spring_pair_conserves_momentum() {
+  Matrix<double> J = diagonalInertia(1, 2, 3);
+  RigidBodySystem s;
+  s.Gravity().setConstant(0);
+  RigidBody a(2.0, J), c(3.0, J);
+  a.q_trans()(0) = 1;
+  c.q_trans()(1) = 2;
+  a.p_trans()(2) = 1;
+  c.p_skew()(0) = 0.4;
+  s.add(a);
+  s.add(c);
+  Connector end_a(Vector<double>{0.1, 0.2, -0.3}, a, ConnectorType::FREE);
+  Connector end_c(Vector<double>{-0.2, 0.1, 0.4}, c, ConnectorType::FREE);
+  Spring spring(end_a, end_c, 7.0, 0.5);
+  s.add(spring);
+
+  auto totals = [&](double* out) {
+    RigidBody* bodies[2] = {&a, &c};
+    for (int i = 0; i < 6; i++) out[i] = 0;
+    for (RigidBody* body : bodies) {
+      double q[3], p[3];
+      for (int i = 0; i < 3; i++) { q[i] = body->q_trans()(i); p[i] = body->p_trans()(i); }
+      for (int i = 0; i < 3; i++) {
+        out[i] += p[i];
+        out[3 + i] += crossComponent(q, p, i);
+        for (int j = 0; j < 3; j++) out[3 + i] += body->q()(i, j) * 2.0 * body->p_skew()(j);
+      }
+    }
+  };
+  auto energy = [&]() {
+    Vector<double> x = s.ExpandState();
+    double E = s.Potential<double>(x);
+    RigidBody* bodies[2] = {&a, &c};
+    const double masses[2] = {2.0, 3.0}, Jd[3] = {1, 2, 3};
+    for (int b = 0; b < 2; b++)
+      for (int i = 0; i < 3; i++) {
+        E += 0.5 * bodies[b]->p_trans()(i) * bodies[b]->p_trans()(i) / masses[b];
+        E += 2.0 * bodies[b]->p_skew()(i) * bodies[b]->p_skew()(i) / Jd[i];
+      }
+    return E;
+  };
+  double start[6], end[6];
+  totals(start);
+  const double E0 = energy();
+  double band = 0;
+  for (int n = 0; n < 1000; n++) {
+    simulate_rbs(s, 0.002, 1);
+    band = std::max(band, std::fabs(energy() - E0));
+  }
+  totals(end);
+  for (int i = 0; i < 6; i++) checkNear(end[i], start[i], 1e-9, "total momentum component " + std::to_string(i));
+  check(band / E0 < 1e-3, "energy error too large: " + std::to_string(band / E0));
+}
+
+void test_spring_jacobian_matches_finite_differences() {
+  Matrix<double> J = diagonalInertia(1, 2, 3);
+  RigidBodySystem s;
+  RigidBody a(2.0, J), c(3.0, J);
+  a.q_trans()(0) = 1;
+  c.q_trans()(1) = 2;
+  s.add(a);
+  s.add(c);
+  Connector end_a(Vector<double>{0.1, 0.2, -0.3}, a, ConnectorType::FREE);
+  Connector end_c(Vector<double>{-0.2, 0.1, 0.4}, c, ConnectorType::FREE);
+  Spring spring(end_a, end_c, 7.0, 0.5);
+  s.add(spring);
+  RigidBodySystemEquation eq(s, 0.001);
+  Vector<double> x = s.ExpandState();
+  for (size_t i = 0; i < x.Size(); i++) x(i) += 0.01 * std::sin(i + 1.0);
+  const size_t n = eq.DimX();
+  Matrix<double> exact(n, n), numeric(n, n);
+  eq.EvaluateDeriv(x, exact);
+  dNumeric(eq, x, numeric);
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = 0; j < n; j++)
+      checkNear(exact(i, j), numeric(i, j), 1e-5,
+                "Jacobian entry (" + std::to_string(i) + "," + std::to_string(j) + ")");
+}
+
+// ---------------------------------------------------------------------------
+// Symplecticity: a symplectic flow keeps the canonical two-form
+//   Omega(u, v) = du_q . dv_p - du_p . dv_q
+// constant. We embed a state as (x, Q, p, Q*hat(p_skew)) in R^24, take tangent
+// vectors by finite differences, and compare Omega before and after the flow.
+// ---------------------------------------------------------------------------
+using Embedding = std::array<double, 24>;
+using Flow = std::function<Embedding(const std::vector<double>&, int)>;
+
+void rotationFromVector(const double* v, double* R) {
+  const double angle = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  const double a = angle > 1e-12 ? std::sin(angle) / angle : 1.0;
+  const double b = angle > 1e-6 ? (1.0 - std::cos(angle)) / (angle * angle) : 0.5;
+  const double W[9] = {0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0};
+  for (int i = 0; i < 3; i++)
+    for (int j = 0; j < 3; j++) {
+      double WW = 0;
+      for (int k = 0; k < 3; k++) WW += W[3 * i + k] * W[3 * k + j];
+      R[3 * i + j] = (i == j ? 1.0 : 0.0) + a * W[3 * i + j] + b * WW;
+    }
+}
+
+Embedding embed(RigidBody& b) {
+  Embedding e;
+  const double w[3] = {b.p_skew()(0), b.p_skew()(1), b.p_skew()(2)};
+  const double W[9] = {0, -w[2], w[1], w[2], 0, -w[0], -w[1], w[0], 0};
+  for (int i = 0; i < 3; i++) {
+    e[i] = b.q_trans()(i);
+    e[12 + i] = b.p_trans()(i);
+    for (int j = 0; j < 3; j++) {
+      e[3 + 3 * i + j] = b.q()(i, j);
+      double P = 0;
+      for (int k = 0; k < 3; k++) P += b.q()(i, k) * W[3 * k + j];
+      e[15 + 3 * i + j] = P;
+    }
+  }
+  return e;
+}
+
+std::vector<double> twoForm(const Flow& flow, const std::vector<double>& z, int steps) {
+  const double eps = 1e-5;
+  const size_t n = z.size();
+  std::vector<Embedding> tangents(n);
+  for (size_t i = 0; i < n; i++) {
+    std::vector<double> up = z, down = z;
+    up[i] += eps;
+    down[i] -= eps;
+    const Embedding a = flow(up, steps), b = flow(down, steps);
+    for (int k = 0; k < 24; k++) tangents[i][k] = (a[k] - b[k]) / (2 * eps);
+  }
+  std::vector<double> omega(n * n);
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = 0; j < n; j++) {
+      double sum = 0;
+      for (int k = 0; k < 12; k++)
+        sum += tangents[i][k] * tangents[j][12 + k] - tangents[i][12 + k] * tangents[j][k];
+      omega[i * n + j] = sum;
+    }
+  return omega;
+}
+
+double symplecticDefect(const Flow& flow, const std::vector<double>& z, int steps) {
+  const auto before = twoForm(flow, z, 0), after = twoForm(flow, z, steps);
+  double largest = 0, defect = 0;
+  for (size_t i = 0; i < before.size(); i++) {
+    largest = std::max(largest, std::fabs(before[i]));
+    defect = std::max(defect, std::fabs(after[i] - before[i]));
+  }
+  return defect / largest;
+}
+
+// A free body on a nonlinear spring attached off-centre, in 12 unconstrained coordinates.
+Embedding springBodyFlow(const std::vector<double>& z, int steps, double damping) {
+  const double Jd[3] = {1, 2, 3};
+  Matrix<double> J = diagonalInertia(Jd[0], Jd[1], Jd[2]);
+  RigidBodySystem s;
+  RigidBody b(2.0, J);
+  double R[9];
+  rotationFromVector(&z[3], R);
+  for (int i = 0; i < 3; i++) {
+    b.q_trans()(i) = z[i];
+    b.p_trans()(i) = z[6 + i];
+    b.p_skew()(i) = z[9 + i];
+    for (int j = 0; j < 3; j++) b.q()(i, j) = R[3 * i + j];
+  }
+  s.add(b);
+  Connector anchor(Vector<double>{0, 0, 0});
+  Connector end(Vector<double>{0.3, 0.1, 0}, b, ConnectorType::FREE);
+  Spring spring(anchor, end, 20.0, 0.5);
+  s.add(spring);
+  for (int n = 0; n < steps; n++) {
+    simulate_rbs(s, 0.01, 1);
+    for (int i = 0; i < 3; i++) {
+      b.p_trans()(i) = damping * b.p_trans()(i);
+      b.p_skew()(i) = damping * b.p_skew()(i);
+    }
+  }
+  return embed(b);
+}
+
+const std::vector<double> kSpringBodyState = {1, 0.2, -0.3, 0.2, -0.1, 0.3, 0.5, -0.4, 0.3, 0.2, 0.5, -0.3};
+
+void test_symplectic_body_on_spring() {
+  Flow flow = [](const std::vector<double>& z, int steps) { return springBodyFlow(z, steps, 1.0); };
+  const double defect = symplecticDefect(flow, kSpringBodyState, 50);
+  std::printf("symplectic defect, body on spring: %.3e\n", defect);
+  check(defect < 1e-7, "two-form changed: " + std::to_string(defect));
+}
+
+// Guards the test itself: a slightly damped flow is not symplectic and must be caught.
+void test_symplectic_check_detects_damping() {
+  Flow flow = [](const std::vector<double>& z, int steps) { return springBodyFlow(z, steps, 0.9999); };
+  const double defect = symplecticDefect(flow, kSpringBodyState, 50);
+  std::printf("symplectic defect, damped flow: %.3e\n", defect);
+  check(defect > 1e-3, "damping was not detected: " + std::to_string(defect));
+}
+
+// The constrained heavy top, in 6 coordinates on its manifold: rotation and angular velocity.
+void test_symplectic_heavy_top() {
+  Flow flow = [](const std::vector<double>& z, int steps) {
+    Matrix<double> J = diagonalInertia(kTopJ[0], kTopJ[1], kTopJ[2]);
+    RigidBodySystem s;
+    s.Gravity().setConstant(0);
+    s.Gravity()(2) = -kG;
+    RigidBody b(kTopMass, J);
+    double R[9];
+    rotationFromVector(&z[0], R);
+    const double xb[3] = {0, 1, 0}, w[3] = {z[3], z[4], z[5]};
+    double v[3];
+    for (int i = 0; i < 3; i++) v[i] = crossComponent(w, xb, i);
+    for (int i = 0; i < 3; i++) {
+      double q = 0, p = 0;
+      for (int j = 0; j < 3; j++) {
+        b.q()(i, j) = R[3 * i + j];
+        q += R[3 * i + j] * xb[j];
+        p += R[3 * i + j] * v[j];
+      }
+      b.q_trans()(i) = q;
+      b.p_trans()(i) = kTopMass * p;
+      b.p_skew()(i) = 0.5 * kTopJ[i] * w[i];
+    }
+    s.add(b);
+    Connector anchor(Vector<double>{0, 0, 0});
+    Connector joint(Vector<double>{0, 0, 0}, b, ConnectorType::SPHERICAL);
+    Beam beam(anchor, joint);
+    s.add(beam);
+    if (steps > 0) simulate_rbs(s, 0.002, steps);
+    return embed(b);
+  };
+  const double defect = symplecticDefect(flow, {0.1, -0.2, 0.3, 1, 20, -2}, 50);
+  std::printf("symplectic defect, heavy top: %.3e\n", defect);
+  check(defect < 1e-6, "two-form changed: " + std::to_string(defect));
+}
+
 // Automatic differentiation must agree with central differences.
 void test_jacobian_matches_finite_differences() {
   HeavyTop top;
@@ -524,6 +825,14 @@ const std::map<std::string, std::function<void()>>& allTests() {
       {"pendulum_energy_bounded", test_pendulum_energy_bounded},
       {"free_body_invariants_are_tight", test_free_body_invariants_are_tight},
       {"jacobian_matches_finite_differences", test_jacobian_matches_finite_differences},
+      {"spring_matches_exact_oscillator", test_spring_matches_exact_oscillator},
+      {"spring_default_rest_length", test_spring_default_rest_length},
+      {"spring_force_is_minus_gradient", test_spring_force_is_minus_gradient},
+      {"spring_pair_conserves_momentum", test_spring_pair_conserves_momentum},
+      {"spring_jacobian_matches_finite_differences", test_spring_jacobian_matches_finite_differences},
+      {"symplectic_body_on_spring", test_symplectic_body_on_spring},
+      {"symplectic_check_detects_damping", test_symplectic_check_detects_damping},
+      {"symplectic_heavy_top", test_symplectic_heavy_top},
   };
   return tests;
 }

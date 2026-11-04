@@ -1,1 +1,0 @@
-/usr/bin/c++  -fPIC -g -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/main.dir/main.cc.o -o main  helper/libhelper.a Elements/libElements.a nonlinfunc/libnonlinfunc.a src/libsrc.a Elements/libElements.a nonlinfunc/libnonlinfunc.a helper/libhelper.a

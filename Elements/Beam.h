@@ -97,9 +97,7 @@ class Beam {
         res(constraint_count) = test * test_2;
         res(constraint_count + 1) = test * test_3;
         
-        //std::cout << "Axis 1: " << (this->axis_) << " Axis 2: " << (this->constraint_plane_.second) << " Axis 2: " << (this->constraint_plane_.first) << std::endl;
       }
-      //std::cout << "Constraint: " << res << std::endl;
       return res;
     }
 

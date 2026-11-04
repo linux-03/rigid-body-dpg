@@ -31,18 +31,15 @@ namespace ASC_ode {
         Beam& bm = rbs_.Beams(rb_.Beams()[i]);
         res +=  constr.Rows(constraint_count, bm.NumberOfConstraints()/2).transpose() * x.segment(bm.StartIndex(), bm.NumberOfConstraints()/2);
         constraint_count += bm.NumberOfConstraints()/2;
-        //std::cout << "old" << bm.Index()<< bm.StartIndex() << std::endl;
       }
     } else {
       Matrix<T> constr = rbs_.JacobianConstraint(x, rb_.Index());
-      //std::cout << "Computed df for body " << rb_.Index() << std::endl << constr << std::endl;
       
       for (size_t i = 0; i < rb_.Beams().size(); i++)
       {
         Beam& bm = rbs_.Beams(rb_.Beams()[i]);
         res += constr.Rows(constraint_count, bm.NumberOfConstraints()/2).transpose() * x.segment(bm.StartIndex() + bm.NumberOfConstraints()/2, bm.NumberOfConstraints()/2);
         constraint_count += bm.NumberOfConstraints()/2;
-        //std::cout << "new " << rb_.Index() << " " <<bm.Index() << " " << bm.StartIndex() << std::endl;
       }
     }
 
@@ -60,12 +57,7 @@ namespace ASC_ode {
     Vector<double> force_new = rbs_.PotentialGradient(x, rb_.Index());
     Vector<double> vel_con_new = FuncConstraint(x, false);
 
-    //std::cout << "force_new: " << force_new << std::endl << std::endl;
-    //std::cout << "vel_con_new: " << vel_con_new << std::endl << std::endl;
-    //std::cout << "force_old: " << force_old << std::endl << std::endl;
-    //std::cout << "vel_con_old: " << vel_con_old << std::endl << std::endl;
     // q_trans 3 q_rot 9 p_half 6 p 6 v 6 lambda 1 mu 1
-    //std::cout << x << std::endl << std::endl;
 
     Vector<double> p = x.segment(dim_per_body()*rb_.Index() + 24, 6);
     Vector<double> v = x.segment(dim_per_body()*rb_.Index() + 12, 6);
@@ -79,7 +71,6 @@ namespace ASC_ode {
 
     f.segment(0, 3) = rb_.Mass() * v.segment(0, 3) - p.segment(0, 3);
     f.segment(3, 3) = v.segment(3, 3) - p.segment(3, 3);
-    //std::cout << "MassMatrix:\n" << rb_.MassMatrix() << std::endl;
     
     f.segment(6, 3) = q_new.segment(0, 3) - rb_.q_trans() - h_*v.segment(0, 3); // q_trans_n - q_trans - h_*p
     f.segment(9, 3) = skewSymmetricToVector(rb_.q().transpose() * ((ToMatrix(q_new.segment(3, 9)) - rb_.q()) - h_*Rmean*vectorToSkewSymmetric(v.segment(3, 3))));
@@ -142,7 +133,6 @@ namespace ASC_ode {
       Matrix<AutoDiff<30, double>> Rnew = ToMatrix(q_new.segment(3, 9));
 
       // q_trans 3 q_rot 9 p_half 6 p 6 v 6 lambda 1 mu 1
-      //std::cout << x << std::endl << std::endl;
       
       
       f_diff.segment(0, 3) = rb_.Mass() * v.segment(0, 3) - p.segment(0, 3);
