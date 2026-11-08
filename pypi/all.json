@@ -1,24 +1,24 @@
 {
   "lib-rigid-body": {
     "releases": {
-      "0.2.0": [
+      "0.2.1": [
         {
           "comment_text": "",
           "digests": {
-            "md5": "31f85e9b44da32a519af7ac13737e060",
-            "sha256": "eda3cac96fe3321b664b9dadb992c752745a1501be8e50001ee51c5f80dfacfa"
+            "md5": "88df23e3f409cfbbbaa2573f73ed7398",
+            "sha256": "53603fc5077615083008c6c064f3d629c9db695d3994d4d54fa639dd766c19ac"
           },
           "downloads": -1,
-          "filename": "lib_rigid_body-0.2.0-cp312-cp312-emscripten_3_1_58_wasm32.whl",
+          "filename": "lib_rigid_body-0.2.1-cp312-cp312-emscripten_3_1_58_wasm32.whl",
           "has_sig": false,
-          "md5_digest": "31f85e9b44da32a519af7ac13737e060",
+          "md5_digest": "88df23e3f409cfbbbaa2573f73ed7398",
           "packagetype": "bdist_wheel",
           "python_version": "py3",
           "requires_python": ">=3.10",
-          "size": 179284,
-          "upload_time": "2026-11-08T22:09:18.143412Z",
-          "upload_time_iso_8601": "2026-11-08T22:09:18.143412Z",
-          "url": "./lib_rigid_body-0.2.0-cp312-cp312-emscripten_3_1_58_wasm32.whl",
+          "size": 188011,
+          "upload_time": "2026-11-08T23:27:46.952362Z",
+          "upload_time_iso_8601": "2026-11-08T23:27:46.952362Z",
+          "url": "./lib_rigid_body-0.2.1-cp312-cp312-emscripten_3_1_58_wasm32.whl",
           "yanked": false,
           "yanked_reason": null
         }
