@@ -20,6 +20,10 @@ namespace ASC_ode {
       size_t DimF() const;
       void Evaluate (VectorView<double> x, VectorView<double> f) const;
       void EvaluateDeriv (VectorView<double> x, MatrixView<double> df) const;
+
+      // The body's 30 equations, for double values and for AutoDiff values alike.
+      template<typename T>
+      void Residual(VectorView<T> x, VectorView<T> f) const;
       
       template<typename T>
       Vector<T> FuncConstraint(const VectorView<T> x, bool old) const;

@@ -3,6 +3,7 @@
 
 #include "equation_rbs.h"
 #include <chrono>
+#include "chunked_jacobian.h"
 
 RigidBodySystemEquation::RigidBodySystemEquation(RigidBodySystem& rbs, double step_size): x_(rbs.NumBodies()*dim_per_body() + rbs.NumConstraints()), rbs_(std::ref(rbs)), h_(step_size)
 {
@@ -60,47 +61,36 @@ void RigidBodySystemEquation::Evaluate (VectorView<double> x, VectorView<double>
 
 void RigidBodySystemEquation::EvaluateDeriv (VectorView<double> x, MatrixView<double> df) const
 {
-  
-  
   df.setConstant(0);
-  
-  Matrix<double> df_block = df.Block(0, 0,  rbs_.get().NumBodies()*dim_per_body(), dimX_);
-  func_.EvaluateDeriv(x, df_block);
 
-  df.Block(0, 0,  rbs_.get().NumBodies()*dim_per_body(), dimX_) = df_block;
+  const size_t body_rows = this->BodyDimensions();
+  func_.EvaluateDeriv(x, df.Block(0, 0, body_rows, dimX_));
 
-  Vector<AutoDiff<30, double>> x_diff = x;
-  size_t prev_index = 0;
-  Vector<AutoDiff<30, double>> f_diff(rbs_.get().NumConstraints());
+  // Beam i's rows read only q (0..11) and the momenta (18..23) of its free bodies.
+  RigidBodySystem& rbs = rbs_.get();
+  size_t row = body_rows;
+  for (size_t i = 0; i < rbs.NumBeams(); i++)
+  {
+    Beam& bm = rbs.Beams(i);
+    const size_t half = bm.NumberOfConstraints()/2;
 
-  for (size_t bd_index = 0; bd_index < rbs_.get().NumBodies(); bd_index++) {
+    ColumnSet cols;
+    auto addBody = [&](Connector& c) {
+      if (c.Type() == ConnectorType::FIX) return;
+      cols.AddRange(dim_per_body()*c.BodyIndex(), 12);
+      cols.AddRange(dim_per_body()*c.BodyIndex() + 18, 6);
+    };
+    addBody(bm.ConnectorA());
+    addBody(bm.ConnectorB());
 
-    for (size_t j = 0; j < 30; j++) {
-      x_diff(dim_per_body()*prev_index + j).DValue(j) = 0;
-      x_diff(dim_per_body()*bd_index + j).DValue(j) = 1;
-    }
-
-    prev_index = bd_index;
-
-    size_t constraint_counter = 0;
-    for (size_t i = 0; i < rbs_.get().NumBeams(); i++ )
-    {
-      Beam& bm = rbs_.get().Beams(i);
-      f_diff.segment(constraint_counter, bm.NumberOfConstraints()/2) = this->rbs_.get().Constraint(x_diff, i);
-      f_diff.segment(constraint_counter + bm.NumberOfConstraints()/2, bm.NumberOfConstraints()/2) = this->rbs_.get().Velocity_Constraint(x_diff, i);
-
-      constraint_counter += bm.NumberOfConstraints();
-    }
-
-    for (size_t j = 0; j < rbs_.get().NumConstraints()/2; j++) {
-      df.Row(this->BodyDimensions() + 2*j).segment(dim_per_body()*bd_index, dim_per_body()) = f_diff(2*j); 
-      df.Row(this->BodyDimensions() + 2*j + 1).segment(dim_per_body()*bd_index, dim_per_body()) = f_diff(2*j + 1); 
-    }
+    ChunkedJacobian(x, cols.Finish(), 2*half,
+                    [&](auto xd, auto fd) {
+                      fd.segment(0, half) = rbs.Constraint(xd, i);
+                      fd.segment(half, half) = rbs.Velocity_Constraint(xd, i);
+                    },
+                    df.Block(row, 0, 2*half, dimX_));
+    row += 2*half;
   }
-  
-  
-  
-  //dNumeric(*(this), x, df);
 }
 
 void RigidBodySystemEquation::step()

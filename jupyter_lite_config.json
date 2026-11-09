@@ -4,6 +4,6 @@
     "output_dir": "site"
   },
   "PipliteAddon": {
-    "piplite_urls": ["dist/lib_rigid_body-0.2.1-cp312-cp312-emscripten_3_1_58_wasm32.whl"]
+    "piplite_urls": ["dist/lib_rigid_body-0.2.2-cp312-cp312-emscripten_3_1_58_wasm32.whl"]
   }
 }

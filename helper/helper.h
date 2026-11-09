@@ -32,8 +32,9 @@ Vector<T> ToVector(MatrixView<T> m) {
 
 template<typename T, typename S>
 auto ApplyTransformation(const VectorView<T> q, const VectorView<S> pos) {
-  Matrix<decltype(q(0)* pos(0))> R = ToMatrix(q.segment(3, 9));
-  Vector<decltype(q(0)* pos(0))> res = q.segment(0, 3) + R * pos;
+  using Elem = ad_value_t<decltype(q(0)* pos(0))>;
+  Matrix<Elem> R = ToMatrix(q.segment(3, 9));
+  Vector<Elem> res = q.segment(0, 3) + R * pos;
   return res;
 }
 // Function to convert a 3D vector to a skew-symmetric matrix (hat operator)
@@ -55,8 +56,8 @@ Matrix<T> vectorToSkewSymmetric(const VectorView<T> v) {
 
 // Function to convert a skew-symmetric matrix to a 3D vector (inverse hat, vee operator)
 template<typename T>
-auto skewSymmetricToVector(const MatrixExpr<T>& skewMatrix) -> Vector<decltype(skewMatrix(0, 0)*1.0)> {
-    Vector<decltype(1.0*skewMatrix(0, 0))> res = {skewMatrix(0, 0)*1.0, skewMatrix(0, 0)*1.0, skewMatrix(0, 0)*1.0};
+auto skewSymmetricToVector(const MatrixExpr<T>& skewMatrix) -> Vector<ad_value_t<decltype(skewMatrix(0, 0)*1.0)>> {
+    Vector<ad_value_t<decltype(1.0*skewMatrix(0, 0))>> res(3);
 
     res(0) = (skewMatrix(2, 1) - skewMatrix(1, 2))/2;
     res(1) = (skewMatrix(0, 2) - skewMatrix(2, 0))/2;

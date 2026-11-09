@@ -808,6 +808,59 @@ void test_jacobian_matches_finite_differences() {
                 "Jacobian entry (" + std::to_string(i) + "," + std::to_string(j) + ")");
 }
 
+// The Jacobian skips columns it knows are zero. Check that on a system where
+// every kind of coupling appears: a fixed anchor, a body-to-body beam, a
+// spherical joint, a spring, and one body nothing is attached to.
+void test_coupled_jacobian_matches_finite_differences() {
+  RigidBodySystem s;
+  Vector<double> p = zeroMomentum();
+  Vector<double> q0 = restState(1, 0, 0), q1 = restState(2, 0.5, 0), q2 = restState(3, 0, 0.5), q3 = restState(0, 3, 0);
+  RigidBody b0(q0, p), b1(q1, p), b2(q2, p), b3(q3, p);
+  s.add(b0);
+  s.add(b1);
+  s.add(b2);
+  s.add(b3);
+  Connector anchor(Vector<double>{0, 0, 0});
+  Connector c0(Vector<double>{0.1, -0.2, 0.3}, b0, ConnectorType::FREE);
+  Connector c0b(Vector<double>{-0.1, 0.2, 0.1}, b0, ConnectorType::FREE);
+  Connector c1(Vector<double>{0.2, 0.1, -0.1}, b1, ConnectorType::FREE);
+  Connector c1b(Vector<double>{0.3, 0.0, 0.2}, b1, ConnectorType::FREE);
+  Connector c2(Vector<double>{0, 0, 0}, b2, ConnectorType::SPHERICAL);
+  Connector s0(Vector<double>{0.0, 0.3, -0.2}, b0, ConnectorType::FREE);
+  Connector s2(Vector<double>{0.1, 0.1, 0.1}, b2, ConnectorType::FREE);
+  Beam fixed(anchor, c0), link(c0b, c1), joint(c1b, c2);
+  Spring spring(s0, s2, 5.0, 1.5);
+  s.add(fixed);
+  s.add(link);
+  s.add(joint);
+  s.add(spring);
+  // Coupling between bodies enters as (h/2) * multiplier * dG, so use a large
+  // step and O(1) multipliers to make every coupling entry clearly visible.
+  RigidBodySystemEquation eq(s, 0.2);
+  Vector<double> x = eq.x();
+  for (size_t i = 0; i < x.Size(); i++) x(i) += 0.01 * std::sin(i + 1.0);
+  for (size_t i = 120; i < x.Size(); i++) x(i) = 2.0 * std::cos(i + 0.5);
+  const size_t n = eq.DimX();
+  Matrix<double> exact(n, n), numeric(n, n);
+  eq.EvaluateDeriv(x, exact);
+  dNumeric(eq, x, numeric);
+  size_t coupling = 0;
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = 0; j < n; j++) {
+      checkNear(exact(i, j), numeric(i, j), 1e-6 * (1 + std::fabs(numeric(i, j))),
+                "Jacobian entry (" + std::to_string(i) + "," + std::to_string(j) + ")");
+      if (i < 120 && j < 120 && i / 30 != j / 30 && std::fabs(numeric(i, j)) > 1e-3) coupling++;
+    }
+  if (coupling == 0) throw std::runtime_error("no body-to-body coupling to check");
+  // Body 3 is free, so its rows and columns must not couple to anything else.
+  for (size_t i = 0; i < n; i++)
+    for (size_t j = 0; j < n; j++) {
+      const bool row3 = i >= 90 && i < 120, col3 = j >= 90 && j < 120;
+      if (row3 != col3 && exact(i, j) != 0.0)
+        throw std::runtime_error("free body 3 coupled at (" + std::to_string(i) + "," + std::to_string(j) + ")");
+    }
+}
+
 const std::map<std::string, std::function<void()>>& allTests() {
   static const std::map<std::string, std::function<void()>> tests = {
       {"mass_scales_kinematics", test_mass_scales_kinematics},
@@ -830,6 +883,7 @@ const std::map<std::string, std::function<void()>>& allTests() {
       {"spring_force_is_minus_gradient", test_spring_force_is_minus_gradient},
       {"spring_pair_conserves_momentum", test_spring_pair_conserves_momentum},
       {"spring_jacobian_matches_finite_differences", test_spring_jacobian_matches_finite_differences},
+      {"coupled_jacobian_matches_finite_differences", test_coupled_jacobian_matches_finite_differences},
       {"symplectic_body_on_spring", test_symplectic_body_on_spring},
       {"symplectic_check_detects_damping", test_symplectic_check_detects_damping},
       {"symplectic_heavy_top", test_symplectic_heavy_top},
